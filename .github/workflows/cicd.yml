@@ -47,6 +47,12 @@ jobs:
       - name: Debug ECR repo
         run: echo $ECR_REPO
 
+        # Auto-create ECR repository if it does not exist
+      - name: Create ECR repository if missing
+        run: |
+          aws ecr describe-repositories --repository-names $IMAGE_NAME --region $AWS_REGION || \
+          aws ecr create-repository --repository-name $IMAGE_NAME --region $AWS_REGION
+          
       # Login to ECR
       - name: Login to Amazon ECR
         id: login-ecr
