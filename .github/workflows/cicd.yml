@@ -1,41 +1,49 @@
-name: Utc App ci/cd
+name: Utc App CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
   id-token: write
 
-env: 
-  python_version: 3.11
-  IMAGE_NAME: my-portfolio-2
-  AWS_REGION: us-east-1
-  Account_ID: ${{ secrets.ACCOUNT_ID }}
-  ECR_REPO: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME
-
+env:
+  python_version: "3.11"
+  IMAGE_NAME: "my-portfolio-2"
+  AWS_REGION: "us-east-1"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Job-level env (can access secrets)
+    env:
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-            python-version: ${{env.python_version}}  # or $python_version
-      - name: Install pytest
+          python-version: ${{ env.python_version }}
+
+      - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: unit test
+
+      - name: Run unit tests
         run: pytest test.py
-        # Configure AWS credentials via OIDC (preferred)
-      - name: Configure AWS Credentials
+
+      - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Check credentials
         run: aws s3 ls
