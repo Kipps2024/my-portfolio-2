@@ -10,7 +10,7 @@ permissions:
   contents: read
   id-token: write
 
-  env: 
+env: 
   python_version: 3.11
   IMAGE_NAME: my-portfolio-2
   AWS_REGION: us-east-1
