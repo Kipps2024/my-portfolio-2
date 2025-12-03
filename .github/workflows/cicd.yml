@@ -58,17 +58,20 @@ jobs:
           IMAGE_TAG=${{ github.sha }}
           docker build -t $ECR_REPO:$IMAGE_TAG .
 
-      # Install Trivy
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+      - name: Install Trivy (CLI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
 
-      # Scan image for HIGH & CRITICAL vulnerabilities
       - name: Trivy image scan
         run: |
           IMAGE_TAG=${{ github.sha }}
           trivy image --exit-code 1 --severity HIGH,CRITICAL $ECR_REPO:$IMAGE_TAG
 
-      # Push image to ECR
       - name: Push image to Amazon ECR
         run: |
           IMAGE_TAG=${{ github.sha }}
