@@ -13,7 +13,7 @@ permissions:
 env:
   python_version: "3.11"
   IMAGE_NAME: "my-portfolio-2"
-  AWS_REGION: "us-east-1"
+  AWS_REGION: "env.AWS_REGION"
 
 jobs:
   build:
@@ -45,5 +45,30 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check credentials
-        run: aws s3 ls
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+        # Docker image build
+      - name: Build Docker Image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+
+      # Install Trivy
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          version: latest
+
+      # Scan the built image
+      - name: Scan Image with Trivy
+        run: |
+          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE
+
+      # Push to ECR
+      - name: Push Image to ECR
+        run: |
+          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          docker push $IMAGE
