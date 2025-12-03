@@ -60,9 +60,7 @@ jobs:
 
       # Install Trivy
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          version: latest
+        uses: aquasecurity/trivy-action@0.20.0
 
       # Scan image for HIGH & CRITICAL vulnerabilities
       - name: Trivy image scan
