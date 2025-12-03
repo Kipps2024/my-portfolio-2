@@ -10,9 +10,9 @@ permissions:
   contents: read
   id-token: write
 
-  env:
+  env: 
   python_version: 3.11
-  IMAGE_NAME: portfolio
+  IMAGE_NAME: my-portfolio-2
   AWS_REGION: us-east-1
   Account_ID: ${{ secrets.ACCOUNT_ID }}
   ECR_REPO: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME
