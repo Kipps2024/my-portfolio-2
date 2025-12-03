@@ -11,18 +11,13 @@ permissions:
   id-token: write
 
 env:
-  python_version: "3.11"
+  PYTHON_VERSION: "3.11"
   IMAGE_NAME: "my-portfolio-2"
-  AWS_REGION: "env.AWS_REGION"
+  AWS_REGION: "us-east-1"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    # Job-level env (can access secrets)
-    env:
-      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
-      ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
 
     steps:
       - name: Checkout code
@@ -31,7 +26,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.python_version }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -45,15 +40,23 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Build ECR repo variable with secrets (must be done at runtime)
+      - name: Generate ECR repo env var
+        run: echo "ECR_REPO=${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}" >> $GITHUB_ENV
+
+      - name: Debug ECR repo
+        run: echo $ECR_REPO
+
+      # Login to ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-        # Docker image build
-      - name: Build Docker Image
+      # Build Docker Image
+      - name: Build Docker image
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+          docker build -t $ECR_REPO:$IMAGE_TAG .
 
       # Install Trivy
       - name: Install Trivy
@@ -61,14 +64,14 @@ jobs:
         with:
           version: latest
 
-      # Scan the built image
-      - name: Scan Image with Trivy
+      # Scan image for HIGH & CRITICAL vulnerabilities
+      - name: Trivy image scan
         run: |
-          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-          trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE
+          IMAGE_TAG=${{ github.sha }}
+          trivy image --exit-code 1 --severity HIGH,CRITICAL $ECR_REPO:$IMAGE_TAG
 
-      # Push to ECR
-      - name: Push Image to ECR
+      # Push image to ECR
+      - name: Push image to Amazon ECR
         run: |
-          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
-          docker push $IMAGE
+          IMAGE_TAG=${{ github.sha }}
+          docker push $ECR_REPO:$IMAGE_TAG
